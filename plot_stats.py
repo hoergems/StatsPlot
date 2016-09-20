@@ -46,7 +46,7 @@ class PlotStats:
         reward_model["collision_penalty"] = -500.0
         reward_model["exit_reward"] = 1000.0
         self.plot_reward2(reward_model, "reward_stats", dir=dir, finish_when_collided=collision_is_failed)
-        sleep
+        return
         self.plot_planner_usage("use_stats", dir=dir, finish_when_collided=True)
         self.plot_num_succesful_runs("succ_stats", 
                                      dir=dir, 
