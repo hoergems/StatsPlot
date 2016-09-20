@@ -122,7 +122,7 @@ class PlotStats:
         plt.xlabel(r'\# obstacles')
         plt.ylabel(r'$\mathbf{\frac{V_{ABT} - V_{LQG-MP}}{\left |V_{ABT} \right |}}$', fontsize=50)
         plt.xlim([0, 30])
-        plt.ylim([0, 1000])
+        plt.ylim([-1, 1])
         plt.xticks(np.linspace(0, 30, 4))
         plt.show()
         plt.clf()
