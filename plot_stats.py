@@ -6,7 +6,7 @@ import glob
 import os
 import logging
 from serializer import Serializer
-from scipy.stats import multivariate_normal
+#from scipy.stats import multivariate_normal
 #from librobot import *
 #from libutil import *
 #from EMD import EMD
