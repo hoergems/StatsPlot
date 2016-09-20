@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import scipy
-import plot as Plot
+#import plot as Plot
 import glob
 import os
 import logging
