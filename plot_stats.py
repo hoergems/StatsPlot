@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import scipy
-#import plot as Plot
+import plot as Plot
 import glob
 import os
 import logging
@@ -15,6 +15,7 @@ import random
 import argparse
 #from emd import emd
 from tabulate import tabulate
+
 
 class PlotStats:
     def __init__(self, dir, save_plots, show_particles, plot_emds, collision_is_failed):        
@@ -45,7 +46,7 @@ class PlotStats:
         reward_model["step_penalty"] = -1.0
         reward_model["collision_penalty"] = -500.0
         reward_model["exit_reward"] = 1000.0
-        self.plot_reward2(reward_model, "reward_stats", dir=dir, finish_when_collided=collision_is_failed)
+        self.plot_reward3(reward_model, "reward_stats", dir=dir, finish_when_collided=collision_is_failed)
         return
         self.plot_planner_usage("use_stats", dir=dir, finish_when_collided=True)
         self.plot_num_succesful_runs("succ_stats", 
@@ -608,21 +609,8 @@ class PlotStats:
             out_files = glob.glob(os.path.join(os.path.join(dir, "out_" + str(output_file_str) + "*")))
             for out_file in out_files:
                 os.remove(out_file)
-        return m_covs, sorted(files)
+        return m_covs, sorted(files)    
     
-    def get_files2(self, output_file_str, dir):
-        files = glob.glob(os.path.join(os.path.join(dir, "*.log")))
-        m_covs = []
-        algorithm = ""
-        for file in sorted(files):
-	    processCovariance = float(file.split("/")[-1].split("_")[3])
-	    observationCovariance = float(file.split("/")[-1].split("_")[4].split(".")[0])
-	    m_covs.append((processCovariance, observationCovariance))
-        for i in xrange(len(m_covs)):
-            out_files = glob.glob(os.path.join(os.path.join(dir, "out_" + str(output_file_str) + "*")))
-            for out_file in out_files:
-                os.remove(out_file)
-        return m_covs, sorted(files)
     
     def plot_mon_stats(self, output_file_str, dir="stats", finish_when_collided=False):
 	m_covs, files = self.get_files(output_file_str, dir)
@@ -703,108 +691,182 @@ class PlotStats:
 		    print "abt used: " + str(abt_used)
 		    print "hfr_used: " + str(hfr_used)
 		    sleep
+		    
+    def get_files2(self, output_file_str, dir):
+        files = glob.glob(os.path.join(os.path.join(dir, "*.log")))
+        #files = [file for file in files if "lqg" in file]
+        m_covs = []
+        algorithm = ""
+        for file in sorted(files):
+	    processCovariance = float(file.split("/")[-1].split("_")[3])
+	    observationCovariance = float(file.split("/")[-1].split("_")[4].split(".log")[0])    
+	    
+	    m_covs.append((processCovariance, observationCovariance))
+        for i in xrange(len(m_covs)):
+            out_files = glob.glob(os.path.join(os.path.join(dir, "out_" + str(output_file_str) + "*")))
+            for out_file in out_files:
+                os.remove(out_file)
+        return m_covs, sorted(files)
+    
+    def plot_reward3(self, reward_model, output_file_str, dir="stats", finish_when_collided=False):
+	m_covs, files = self.get_files2(output_file_str, dir)	
+        d = dict()
+        algorithm = ""
+        arrs = []
+        processCovarianceString = "Process covariance:"
+        observationCovaranceString = "Observation covariance:"
+        covProcess = 0.0
+        covObservation = 0.0
+        for i in xrange(len(files)):        
+	    print files[i]	    
+	    rewardsPerRun = []
+	    rewardRun = 0.0
+	    covProcess = m_covs[i][0]
+	    covObservation = m_covs[i][1]
+	    try:
+		algorithm = ""
+		file_str = "alg: " + files[i].split("/")[-1].split("_")[1]            
+		inc_covariance_str = "process"
+	        with open(files[i], "r") as f:
+		    for line in f:			
+			if "inc_covariance: " in line:                        
+			    inc_covariance = line.rstrip("\n").split(": ")[1]                        
+			    if inc_covariance == 'observation':
+				inc_covariance_str = "observation"		        
+		with open(files[i], "r") as f:
+		    algorithm = files[i].split("/")[-1].split("_")[2]
+		    for line in f:
+			if "R:" in line:			    
+			    rewardRun += float(line.split(": ")[-1])
+			elif ("RUN #" in line or 
+			    "Run #" in line or
+			    "#############" in line):			    
+			    rewardsPerRun.append(rewardRun)
+			    rewardRun = 0.0
+	        try:
+		    mean, conf = self.mean_confidence_interval(rewardsPerRun)
+		    n, min_max, mean2, var2, skew, kurt = scipy.stats.describe(np.array(rewardsPerRun))
+		    if mean2 > 1000:
+			print "GREATER"
+			print rewardsPerRun
+			sleep
+		    outFileStr = "out_" + str(output_file_str) + "_" + str(covProcess) + "_" + str(covObservation) + ".txt"
+		    with open(os.path.join(dir, outFileStr), "a+") as f:
+			f.write("algorithm: " + algorithm + " \n")
+			f.write("process covariance: " + str(covProcess) + " \n")
+			f.write("observation covariance: " + str(covObservation) + " \n")                
+			f.write("mean per run: " + str(mean2) + " \n")
+			f.write("variance: " + str(var2) + " \n")
+			f.write("min: " + str(min_max[0]) + " \n")
+			f.write("max: " + str(min_max[1]) + " \n")
+			f.write("conf: " + str(conf) + " \n")
+			f.write("inc_covariance: " + inc_covariance_str + " \n \n")
+	        except Exception as e:
+		    print e
+		    
+	            
+	    except:
+		pass
+		
 		   
     def plot_reward2(self, reward_model, output_file_str, dir="stats", finish_when_collided=False):
 	m_covs, files = self.get_files2(output_file_str, dir)	
         d = dict()
         algorithm = ""
-        arrs = []        
+        arrs = []
         for file in files:
-	    print file
-            vals = []
-            vals_per_run = []
-            all_vals = []
-            num_runs = 0.0
-            algorithm = ""
-            file_str = "alg: " + file.split("/")[-1].split("_")[1]            
-            inc_covariance_str = "process"
-            if not file_str in d:
-                d[file_str] = []
-            processCovarianceString = "Process covariance:"
-            observationCovaranceString = "Observation covariance:"
-            with open(file, "r") as f:
-                for line in f:
-                    if "inc_covariance: " in line:                        
-                        inc_covariance = line.rstrip("\n").split(": ")[1]                        
-                        if inc_covariance == 'observation':
-			    inc_covariance_str = "observation"                                 
-            with open(file, "r") as f:
-                algorithm = file.split("/")[-1].split("_")[2]                
-                reward_set = False
-                block = False
-                print_line=False
-                for line in f:                    
-                    if processCovarianceString in line:
-			covProcess = float(line.split(" ")[2])                        
-                    elif observationCovaranceString in line:
-			covObservation = float(line.split(" ")[2])
-                    elif ("RUN #" in line or 
-                          "Run #" in line):
-                        num_runs += 1
-                        block = False
-                        if len(vals) != 0:
-                            vals_per_run.append(vals)
-                            all_vals.extend(vals)
-                            vals = []
-                    elif "inc_covariance" in line:
-                        vals_per_run.append(vals)
-                        all_vals.extend(vals)                        
-                        vals = [] 
-                        block  = False
-                        print_line = True
-                    elif "t = " in line:
-                        if not block:                                               
-                            vals.append(reward_model['step_penalty'])
-                    elif "Collision detected: True" in line:			
-			if not block:			    
-                            vals[-1] = reward_model['collision_penalty']
-                        if finish_when_collided:
-                            block = True
-                    elif "collided: true" in line:                        			
-                        if not block:
-			    if algorithm == "abt":
-				print "reward model: " + str(reward_model['collision_penalty'])				
-                            vals[-1] = reward_model['collision_penalty']
-                        if finish_when_collided:
-                            block = True
-                    elif "R: " in line and not "LINEAR" in line:
-                        if not block:
-                            try:			    
-                                vals[-1] = float(line.strip().split(": ")[1])
-                            except Exception as e:
-				print e
-				print "line " + str(line)
-				print "file " + str(file)
-				sleep
-                    '''elif "Terminal: true" in line or "Terminal: True" in line:
-                        if not block:
-                            vals[-1] = reward_model['exit_reward']'''
-                                            
-            
-            arr = []
-            print "algorithm: " + algorithm
-            print "num runs: " + str(num_runs)            
-            print "len vals_pre_run " + str(len(vals_per_run))
-            for i in xrange(int(num_runs)): 
-                if algorithm == 'hrf':
-                    print sum(vals_per_run[i])                        
-                arr.append(sum(vals_per_run[i]))
-            arrs.append(arr)
-            mean, conf = self.mean_confidence_interval(arr)            
-            
-            #Plot.plot_histogram_from_data(arr, bin_width=1.0, title=algorithm)        
-            n, min_max, mean2, var2, skew, kurt = scipy.stats.describe(np.array(arr))
-            outFileStr = "out_" + str(output_file_str) + "_" + str(covProcess) + "_" + str(covObservation) + ".txt"
-            with open(os.path.join(dir, outFileStr), "a+") as f:
-		f.write("algorithm: " + algorithm + " \n")
-		f.write("process covariance: " + str(covProcess) + " \n")
-		f.write("observation covariance: " + str(covObservation) + " \n")                
-                f.write("mean per run: " + str(mean2) + " \n")
-                f.write("variance: " + str(var2) + " \n")
-                f.write("min: " + str(min_max[0]) + " \n")
-                f.write("max: " + str(min_max[1]) + " \n")
-                f.write("conf: " + str(conf) + " \n")
-                f.write("inc_covariance: " + inc_covariance_str + " \n \n")
+	    try:
+		print file
+		vals = []
+		vals_per_run = []
+		all_vals = []
+		num_runs = 0.0
+		algorithm = ""
+		file_str = "alg: " + file.split("/")[-1].split("_")[1]            
+		inc_covariance_str = "process"
+		if not file_str in d:
+		    d[file_str] = []
+		processCovarianceString = "Process covariance:"
+		observationCovaranceString = "Observation covariance:"
+		with open(file, "r") as f:
+		    for line in f:
+			if "inc_covariance: " in line:                        
+			    inc_covariance = line.rstrip("\n").split(": ")[1]                        
+			    if inc_covariance == 'observation':
+				inc_covariance_str = "observation"                                 
+		with open(file, "r") as f:
+		    algorithm = file.split("/")[-1].split("_")[2]                
+		    reward_set = False
+		    block = False
+		    print_line=False
+		    for line in f:                    
+			if processCovarianceString in line:
+			    covProcess = float(line.split(" ")[2])                        
+			elif observationCovaranceString in line:
+			    covObservation = float(line.split(" ")[2])
+			elif ("RUN #" in line or 
+			    "Run #" in line):
+			    num_runs += 1
+			    block = False
+			    if len(vals) != 0:
+				vals_per_run.append(vals)
+				all_vals.extend(vals)
+				vals = []
+			elif "inc_covariance" in line:
+			    vals_per_run.append(vals)
+			    all_vals.extend(vals)                        
+			    vals = [] 
+			    block  = False
+			    print_line = True
+			elif "t = " in line:
+			    if not block:                                               
+				vals.append(reward_model['step_penalty'])
+			elif "Collision detected: True" in line:			
+			    if not block:			    
+				vals[-1] = reward_model['collision_penalty']
+			    if finish_when_collided:
+				block = True
+			elif "collided: true" in line:                        			
+			    if not block:
+				if algorithm == "abt":
+				    print "reward model: " + str(reward_model['collision_penalty'])				
+				vals[-1] = reward_model['collision_penalty']
+			    if finish_when_collided:
+				block = True
+			elif "R: " in line and not "LINEAR" in line:
+			    if not block:                            			    
+				vals[-1] = float(line.strip().split(": ")[1])                            
+			'''elif "Terminal: true" in line or "Terminal: True" in line:
+			    if not block:
+				vals[-1] = reward_model['exit_reward']'''
+						
+		
+		arr = []
+		print "algorithm: " + algorithm
+		print "num runs: " + str(num_runs)            
+		print "len vals_pre_run " + str(len(vals_per_run))
+		for i in xrange(int(num_runs)): 
+		    if algorithm == 'hrf':
+			print sum(vals_per_run[i])                        
+		    arr.append(sum(vals_per_run[i]))
+		arrs.append(arr)
+		mean, conf = self.mean_confidence_interval(arr)            
+		
+		#Plot.plot_histogram_from_data(arr, bin_width=1.0, title=algorithm)        
+		n, min_max, mean2, var2, skew, kurt = scipy.stats.describe(np.array(arr))
+		outFileStr = "out_" + str(output_file_str) + "_" + str(covProcess) + "_" + str(covObservation) + ".txt"
+		with open(os.path.join(dir, outFileStr), "a+") as f:
+		    f.write("algorithm: " + algorithm + " \n")
+		    f.write("process covariance: " + str(covProcess) + " \n")
+		    f.write("observation covariance: " + str(covObservation) + " \n")                
+		    f.write("mean per run: " + str(mean2) + " \n")
+		    f.write("variance: " + str(var2) + " \n")
+		    f.write("min: " + str(min_max[0]) + " \n")
+		    f.write("max: " + str(min_max[1]) + " \n")
+		    f.write("conf: " + str(conf) + " \n")
+		    f.write("inc_covariance: " + inc_covariance_str + " \n \n")
+            except:
+		pass
         absmin = 1000000000
         absmax = -1000000000
         for i in xrange(len(arrs)):
