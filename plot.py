@@ -3,7 +3,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from mpl_toolkits.mplot3d import Axes3D
 import pylab as p
 import numpy as np
-from scipy import stats
+#from scipy import stats
 import glob
 import os
 
