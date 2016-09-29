@@ -131,7 +131,7 @@ class PlotStats:
 		      markersize=10)
 	ax.legend(loc='upper right', prop={'size': 10})
 	plt.xlabel(r'\# obstacles')
-        plt.ylabel(r'$V$', fontsize=30)
+        plt.ylabel(r'$V^*(b_0)$', fontsize=30)
         plt.xlim([0, 30])
         print "maxAbsValue " + str(maxAbsValue)
         plt.ylim([minAbsValue, maxAbsValue])
